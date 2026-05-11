@@ -113,7 +113,7 @@ class MyPlayer extends Agent {
 }
 
 
-class GeminiAgent extends Agent {
+class Gemini2Agent extends Agent {
     constructor() {
         super();
         this.boardObj = new Board();
@@ -223,6 +223,7 @@ class GeminiAgent extends Agent {
         return count;
     }
 }
+
 class ChatAgent extends Agent {
 
     constructor() {
