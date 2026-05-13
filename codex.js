@@ -353,6 +353,52 @@ class CodexAgent extends Agent {
         return count;
     }
 
+    _textureScore(curPlayer) {
+        let twos = 0;
+        let threes = 0;
+        const total = this.N * this.N;
+
+        for (let cid = 0; cid < total; cid++) {
+            if (this.cellOwner[cid]) continue;
+            const sides = this.cellSides[cid];
+            if (sides === 2) twos++;
+            else threes++;
+        }
+
+        const my = (curPlayer === -1) ? this.scoreR : this.scoreY;
+        const opp = (curPlayer === -1) ? this.scoreY : this.scoreR;
+        return (my - opp) * 12000 - twos * 32 - threes * 140;
+    }
+
+    _largeBoardPick(rootCount) {
+        if (this.N < 30) return this.root[0];
+
+        let best = this.root[0];
+        let bestScore = -100000000;
+        const limit = Math.min(rootCount, this.rootScore.length, this.buffers[0].sc > 0 ? 96 : 40);
+        const beforeTexture = this._textureScore(this.myPly);
+
+        for (let i = 0; i < limit; i++) {
+            const e = this.root[i];
+            const beforeRisk = this.riskCells;
+            const sv = this.makeMove(e, this.myPly);
+            const riskDelta = this.riskCells - beforeRisk;
+            const textureDelta = this._textureScore(this.myPly) - beforeTexture;
+            const score = this.rootScore[i] * 12 +
+                textureDelta -
+                riskDelta * 90 -
+                this._edgeRisk(e) * 380;
+            this.unmakeMove(e, sv, this.myPly);
+
+            if (score > bestScore) {
+                bestScore = score;
+                best = e;
+            }
+        }
+
+        return best;
+    }
+
     evaluate(curPlayer) {
         const my = (curPlayer === -1) ? this.scoreR : this.scoreY;
         const opp = (curPlayer === -1) ? this.scoreY : this.scoreR;
@@ -375,7 +421,7 @@ class CodexAgent extends Agent {
     _largeBoardFastMode(buf) {
         if (this.N < 30 || buf.sc === 0) return false;
         const phase = 1 - this.movesLeft / Math.max(this.totalPlayable, 1);
-        return phase < 0.72 || buf.sc > 160;
+        return phase < 0.58 || buf.sc > 220;
     }
 
     negamax(depth, alpha, beta, curPlayer, lv) {
@@ -434,7 +480,7 @@ class CodexAgent extends Agent {
         if (total === 1) return this._toAction(buf.sc ? buf.safe[0] : buf.risky[0], board);
 
         const rootCount = this._collectRoot(buf);
-        let bestMove = this.root[0];
+        let bestMove = this.N >= 30 ? this._largeBoardPick(rootCount) : this.root[0];
         if (time <= 120 || rootCount <= 1) return this._toAction(bestMove, board);
         if (this._largeBoardFastMode(buf)) return this._toAction(bestMove, board);
 
